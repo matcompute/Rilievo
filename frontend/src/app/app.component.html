@@ -1,0 +1,524 @@
+<ng-template #loginView>
+  <div class="login-shell">
+    <section class="login-hero">
+      <p class="eyebrow">Construction And Permit Intelligence</p>
+      <h1>Rilievo</h1>
+      <p class="hero-copy">
+        A shared construction workspace for portfolio visibility, permit deadlines, subcontractor compliance,
+        and site reporting.
+      </p>
+
+      <div class="demo-strip">
+        <button *ngFor="let account of demoAccounts" type="button" class="demo-chip" (click)="chooseDemo(account.email)">
+          {{ account.label }}
+        </button>
+      </div>
+
+      <div class="hero-grid">
+        <div class="hero-stat">
+          <span>Permit Pulse</span>
+          <strong>Deadline-first</strong>
+        </div>
+        <div class="hero-stat">
+          <span>Site Diary</span>
+          <strong>Operational Memory</strong>
+        </div>
+        <div class="hero-stat">
+          <span>Compliance</span>
+          <strong>Risk surfaced early</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="login-panel">
+      <div class="panel-head">
+        <p class="eyebrow">Workspace Access</p>
+        <h2>Open the live demo</h2>
+      </div>
+
+      <label class="field">
+        <span>Email</span>
+        <input [(ngModel)]="loginEmail" type="email" />
+      </label>
+
+      <label class="field">
+        <span>Password</span>
+        <input [(ngModel)]="loginPassword" type="password" />
+      </label>
+
+      <button type="button" class="primary-action" (click)="login()" [disabled]="isAuthenticating()">
+        {{ isAuthenticating() ? 'Signing in...' : 'Enter Rilievo' }}
+      </button>
+
+      <p class="helper-copy">Seeded password: <strong>Rilievo123!</strong></p>
+    </section>
+  </div>
+</ng-template>
+
+<div *ngIf="session(); else loginView" class="workspace-shell">
+  <header class="masthead">
+    <div class="brand-block">
+      <p class="eyebrow">Rilievo</p>
+      <h1>Construction command with permit, diary, and compliance signals in one place.</h1>
+      <p class="hero-copy">
+        Track portfolio health, surface blockers early, and keep site coordination explainable.
+      </p>
+    </div>
+
+    <div class="session-block">
+      <div class="user-chip" [style.border-color]="session()?.user?.accent_color">
+        <strong>{{ session()?.user?.name }}</strong>
+        <span>{{ session()?.user?.role }}</span>
+      </div>
+      <button type="button" class="ghost-action" (click)="logout()">Sign out</button>
+    </div>
+  </header>
+
+  <section class="status-band">
+    <div *ngIf="errorMessage()" class="message message-error">{{ errorMessage() }}</div>
+    <div *ngIf="!errorMessage() && infoMessage()" class="message message-info">{{ infoMessage() }}</div>
+  </section>
+
+  <section class="metric-strip">
+    <article *ngFor="let metric of metricCards()" class="metric-card" [attr.data-tone]="metric.tone">
+      <span>{{ metric.label }}</span>
+      <strong>{{ metric.value }}</strong>
+    </article>
+  </section>
+
+  <section class="workspace-grid">
+    <aside class="project-rail">
+      <div class="section-head">
+        <p class="eyebrow">Portfolio</p>
+        <h2>Projects</h2>
+      </div>
+
+      <label class="field compact">
+        <span>Search</span>
+        <input [(ngModel)]="projectSearch" type="text" placeholder="Code, project, city" />
+      </label>
+
+      <label class="field compact">
+        <span>Status</span>
+        <select [(ngModel)]="projectStatusFilter">
+          <option value="">All statuses</option>
+          <option *ngFor="let status of lookups()?.project_statuses ?? []" [value]="status">{{ status }}</option>
+        </select>
+      </label>
+
+      <div class="project-list">
+        <button
+          *ngFor="let project of filteredProjects(); trackBy: trackById"
+          type="button"
+          class="project-card"
+          [class.project-card-active]="selectedProject()?.id === project.id"
+          (click)="openProject(project.id)">
+          <div class="project-card-head">
+            <strong>{{ project.code }}</strong>
+            <span class="status-pill" [attr.data-tone]="toneForStatus(project.status)">{{ project.status }}</span>
+          </div>
+          <h3>{{ project.name }}</h3>
+          <p>{{ project.city }} · {{ project.client_name }}</p>
+          <div class="progress-line">
+            <span [style.width.%]="project.progress_percent"></span>
+          </div>
+          <div class="project-card-foot">
+            <span>{{ project.progress_percent }}%</span>
+            <span>{{ project.issues_count ?? 0 }} issues</span>
+          </div>
+        </button>
+      </div>
+    </aside>
+
+    <main class="detail-panel" *ngIf="selectedProject() as project; else noProject">
+      <div class="detail-hero">
+        <div>
+          <p class="eyebrow">{{ project.code }} · {{ project.city }}</p>
+          <h2>{{ project.name }}</h2>
+          <p class="detail-copy">{{ project.summary || 'Project summary will appear here as soon as it is recorded.' }}</p>
+        </div>
+
+        <div class="detail-badges">
+          <span class="status-pill" [attr.data-tone]="toneForStatus(project.status)">{{ project.status }}</span>
+          <span class="status-pill" [attr.data-tone]="toneForStatus(project.permit_status)">{{ project.permit_status }}</span>
+        </div>
+      </div>
+
+      <div class="hero-metrics">
+        <div class="hero-stat-card">
+          <span>Manager</span>
+          <strong>{{ project.manager?.name || 'Unassigned' }}</strong>
+        </div>
+        <div class="hero-stat-card">
+          <span>Budget spent</span>
+          <strong>{{ formatCurrency(project.budget_spent) }}</strong>
+        </div>
+        <div class="hero-stat-card">
+          <span>Budget total</span>
+          <strong>{{ formatCurrency(project.budget_total) }}</strong>
+        </div>
+        <div class="hero-stat-card">
+          <span>Target date</span>
+          <strong>{{ formatDate(project.target_date) }}</strong>
+        </div>
+      </div>
+
+      <div class="budget-bar">
+        <span [style.width.%]="budgetRatio(project)"></span>
+      </div>
+
+      <div class="detail-toolbar">
+        <button type="button" class="tool-chip" [class.tool-chip-active]="activeBoard === 'overview'" (click)="activeBoard = 'overview'">Overview</button>
+        <button type="button" class="tool-chip" [class.tool-chip-active]="activeBoard === 'permits'" (click)="activeBoard = 'permits'">Permits</button>
+        <button type="button" class="tool-chip" [class.tool-chip-active]="activeBoard === 'issues'" (click)="activeBoard = 'issues'">Issues</button>
+        <button type="button" class="tool-chip" [class.tool-chip-active]="activeBoard === 'contractors'" (click)="activeBoard = 'contractors'">Contractors</button>
+        <button type="button" class="tool-chip" [class.tool-chip-active]="activeBoard === 'diary'" (click)="activeBoard = 'diary'">Site diary</button>
+      </div>
+
+      <section *ngIf="activeBoard === 'overview'" class="detail-board">
+        <div class="board-grid">
+          <article class="overview-panel">
+            <div class="section-head">
+              <p class="eyebrow">Alerts</p>
+              <h3>Portfolio watchlist</h3>
+            </div>
+
+            <div class="alert-list">
+              <div *ngFor="let alert of dashboard()?.alerts ?? []" class="alert-row" [attr.data-tone]="alert.level === 'critical' ? 'critical' : 'warning'">
+                <strong>{{ alert.title }}</strong>
+                <span>{{ alert.detail }}</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="overview-panel">
+            <div class="section-head">
+              <p class="eyebrow">Snapshot</p>
+              <h3>Selected project pulse</h3>
+            </div>
+
+            <div class="fact-grid">
+              <div class="fact-tile">
+                <span>Permits</span>
+                <strong>{{ selectedPermits().length }}</strong>
+              </div>
+              <div class="fact-tile">
+                <span>Issues</span>
+                <strong>{{ selectedIssues().length }}</strong>
+              </div>
+              <div class="fact-tile">
+                <span>Contractors</span>
+                <strong>{{ selectedContractors().length }}</strong>
+              </div>
+              <div class="fact-tile">
+                <span>Diary entries</span>
+                <strong>{{ selectedDiaryEntries().length }}</strong>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section *ngIf="activeBoard === 'permits'" class="detail-board">
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Permit</th>
+                <th>Authority</th>
+                <th>Owner</th>
+                <th>Due</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let permit of selectedPermits(); trackBy: trackById">
+                <td>
+                  <strong>{{ permit.reference_code }}</strong>
+                  <span>{{ permit.permit_name }}</span>
+                </td>
+                <td>{{ permit.authority }}</td>
+                <td>{{ permit.owner?.name || '-' }}</td>
+                <td>{{ formatDate(permit.due_date) }}</td>
+                <td>
+                  <select [ngModel]="permit.status" (ngModelChange)="setPermitStatus(permit, $event)">
+                    <option *ngFor="let status of lookups()?.permit_statuses ?? []" [ngValue]="status">{{ status }}</option>
+                  </select>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section *ngIf="activeBoard === 'issues'" class="detail-board">
+        <div class="issue-list">
+          <article *ngFor="let issue of selectedIssues(); trackBy: trackById" class="issue-card">
+            <div class="issue-card-head">
+              <div>
+                <p class="eyebrow">{{ issue.category }}</p>
+                <h3>{{ issue.title }}</h3>
+              </div>
+              <span class="status-pill" [attr.data-tone]="toneForStatus(issue.priority)">{{ issue.priority }}</span>
+            </div>
+            <p>{{ issue.description }}</p>
+            <div class="issue-meta">
+              <span>Assignee: {{ issue.assignee_name || 'Unassigned' }}</span>
+              <span>Due: {{ formatDate(issue.due_date) }}</span>
+            </div>
+            <label class="field compact">
+              <span>Status</span>
+              <select [ngModel]="issue.status" (ngModelChange)="setIssueStatus(issue, $event)">
+                <option *ngFor="let status of lookups()?.issue_statuses ?? []" [ngValue]="status">{{ status }}</option>
+              </select>
+            </label>
+          </article>
+        </div>
+      </section>
+
+      <section *ngIf="activeBoard === 'contractors'" class="detail-board">
+        <div class="table-shell">
+          <table>
+            <thead>
+              <tr>
+                <th>Contractor</th>
+                <th>Trade</th>
+                <th>Workers</th>
+                <th>Insurance</th>
+                <th>Compliance</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let contractor of selectedContractors(); trackBy: trackById">
+                <td>
+                  <strong>{{ contractor.name }}</strong>
+                  <span>{{ contractor.contact_name }}</span>
+                </td>
+                <td>{{ contractor.trade }}</td>
+                <td>{{ contractor.worker_count }}</td>
+                <td>{{ formatDate(contractor.insurance_expires_on) }}</td>
+                <td>
+                  <select [ngModel]="contractor.compliance_status" (ngModelChange)="setContractorStatus(contractor, $event)">
+                    <option *ngFor="let status of lookups()?.contractor_statuses ?? []" [ngValue]="status">{{ status }}</option>
+                  </select>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section *ngIf="activeBoard === 'diary'" class="detail-board">
+        <div class="diary-list">
+          <article *ngFor="let entry of selectedDiaryEntries(); trackBy: trackById" class="diary-card">
+            <div class="diary-card-head">
+              <strong>{{ formatDate(entry.entry_date) }}</strong>
+              <span>{{ entry.weather }} · {{ entry.workforce_count }} people</span>
+            </div>
+            <p>{{ entry.completed_work }}</p>
+            <small *ngIf="entry.blockers">Blockers: {{ entry.blockers }}</small>
+            <small *ngIf="entry.safety_note">Safety: {{ entry.safety_note }}</small>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <aside class="composer-panel">
+      <div class="section-head">
+        <p class="eyebrow">Composer</p>
+        <h2>Quick capture</h2>
+      </div>
+
+      <div class="detail-toolbar">
+        <button type="button" class="tool-chip" [class.tool-chip-active]="composerView === 'project'" (click)="composerView = 'project'">Project</button>
+        <button type="button" class="tool-chip" [class.tool-chip-active]="composerView === 'permit'" (click)="composerView = 'permit'">Permit</button>
+        <button type="button" class="tool-chip" [class.tool-chip-active]="composerView === 'contractor'" (click)="composerView = 'contractor'">Contractor</button>
+        <button type="button" class="tool-chip" [class.tool-chip-active]="composerView === 'issue'" (click)="composerView = 'issue'">Issue</button>
+        <button type="button" class="tool-chip" [class.tool-chip-active]="composerView === 'diary'" (click)="composerView = 'diary'">Diary</button>
+      </div>
+
+      <form *ngIf="composerView === 'project'" class="composer-form" (ngSubmit)="createProject()">
+        <label class="field"><span>Code</span><input [(ngModel)]="projectForm.code" name="project_code" type="text" /></label>
+        <label class="field"><span>Name</span><input [(ngModel)]="projectForm.name" name="project_name" type="text" /></label>
+        <label class="field"><span>Client</span><input [(ngModel)]="projectForm.client_name" name="project_client" type="text" /></label>
+        <label class="field"><span>City</span><input [(ngModel)]="projectForm.city" name="project_city" type="text" /></label>
+        <label class="field"><span>Manager</span>
+          <select [(ngModel)]="projectForm.manager_id" name="project_manager">
+            <option *ngFor="let user of managers()" [ngValue]="user.id">{{ user.name }}</option>
+          </select>
+        </label>
+        <div class="field-row">
+          <label class="field"><span>Status</span>
+            <select [(ngModel)]="projectForm.status" name="project_status">
+              <option *ngFor="let status of lookups()?.project_statuses ?? []" [ngValue]="status">{{ status }}</option>
+            </select>
+          </label>
+          <label class="field"><span>Permit status</span>
+            <select [(ngModel)]="projectForm.permit_status" name="project_permit_status">
+              <option value="IN_REVIEW">IN_REVIEW</option>
+              <option value="CLEAR">CLEAR</option>
+              <option value="BLOCKED">BLOCKED</option>
+            </select>
+          </label>
+        </div>
+        <div class="field-row">
+          <label class="field"><span>Budget total</span><input [(ngModel)]="projectForm.budget_total" name="project_budget_total" type="number" /></label>
+          <label class="field"><span>Budget spent</span><input [(ngModel)]="projectForm.budget_spent" name="project_budget_spent" type="number" /></label>
+        </div>
+        <div class="field-row">
+          <label class="field"><span>Start</span><input [(ngModel)]="projectForm.start_date" name="project_start" type="date" /></label>
+          <label class="field"><span>Target</span><input [(ngModel)]="projectForm.target_date" name="project_target" type="date" /></label>
+        </div>
+        <label class="field"><span>Summary</span><textarea [(ngModel)]="projectForm.summary" name="project_summary" rows="3"></textarea></label>
+        <button type="submit" class="primary-action" [disabled]="isLoading()">Create project</button>
+      </form>
+
+      <form *ngIf="composerView === 'permit'" class="composer-form" (ngSubmit)="createPermit()">
+        <label class="field"><span>Project</span>
+          <select [(ngModel)]="permitForm.project_id" name="permit_project">
+            <option *ngFor="let project of projectOptions()" [ngValue]="project.id">{{ project.code }} · {{ project.name }}</option>
+          </select>
+        </label>
+        <label class="field"><span>Owner</span>
+          <select [(ngModel)]="permitForm.owner_id" name="permit_owner">
+            <option *ngFor="let user of permitOwners()" [ngValue]="user.id">{{ user.name }}</option>
+          </select>
+        </label>
+        <label class="field"><span>Permit name</span><input [(ngModel)]="permitForm.permit_name" name="permit_name" type="text" /></label>
+        <label class="field"><span>Authority</span><input [(ngModel)]="permitForm.authority" name="permit_authority" type="text" /></label>
+        <label class="field"><span>Reference</span><input [(ngModel)]="permitForm.reference_code" name="permit_reference" type="text" /></label>
+        <div class="field-row">
+          <label class="field"><span>Status</span>
+            <select [(ngModel)]="permitForm.status" name="permit_status">
+              <option *ngFor="let status of lookups()?.permit_statuses ?? []" [ngValue]="status">{{ status }}</option>
+            </select>
+          </label>
+          <label class="field"><span>Due</span><input [(ngModel)]="permitForm.due_date" name="permit_due" type="date" /></label>
+        </div>
+        <label class="field"><span>Notes</span><textarea [(ngModel)]="permitForm.notes" name="permit_notes" rows="3"></textarea></label>
+        <button type="submit" class="primary-action" [disabled]="isLoading()">Create permit</button>
+      </form>
+
+      <form *ngIf="composerView === 'contractor'" class="composer-form" (ngSubmit)="createContractor()">
+        <label class="field"><span>Project</span>
+          <select [(ngModel)]="contractorForm.project_id" name="contractor_project">
+            <option *ngFor="let project of projectOptions()" [ngValue]="project.id">{{ project.code }} · {{ project.name }}</option>
+          </select>
+        </label>
+        <label class="field"><span>Name</span><input [(ngModel)]="contractorForm.name" name="contractor_name" type="text" /></label>
+        <label class="field"><span>Trade</span><input [(ngModel)]="contractorForm.trade" name="contractor_trade" type="text" /></label>
+        <label class="field"><span>Contact name</span><input [(ngModel)]="contractorForm.contact_name" name="contractor_contact_name" type="text" /></label>
+        <label class="field"><span>Contact email</span><input [(ngModel)]="contractorForm.contact_email" name="contractor_contact_email" type="email" /></label>
+        <div class="field-row">
+          <label class="field"><span>Compliance</span>
+            <select [(ngModel)]="contractorForm.compliance_status" name="contractor_status">
+              <option *ngFor="let status of lookups()?.contractor_statuses ?? []" [ngValue]="status">{{ status }}</option>
+            </select>
+          </label>
+          <label class="field"><span>Workers</span><input [(ngModel)]="contractorForm.worker_count" name="contractor_workers" type="number" /></label>
+        </div>
+        <label class="field"><span>Insurance expiry</span><input [(ngModel)]="contractorForm.insurance_expires_on" name="contractor_insurance" type="date" /></label>
+        <button type="submit" class="primary-action" [disabled]="isLoading()">Add contractor</button>
+      </form>
+
+      <form *ngIf="composerView === 'issue'" class="composer-form" (ngSubmit)="createIssue()">
+        <label class="field"><span>Project</span>
+          <select [(ngModel)]="issueForm.project_id" name="issue_project">
+            <option *ngFor="let project of projectOptions()" [ngValue]="project.id">{{ project.code }} · {{ project.name }}</option>
+          </select>
+        </label>
+        <div class="field-row">
+          <label class="field"><span>Category</span><input [(ngModel)]="issueForm.category" name="issue_category" type="text" /></label>
+          <label class="field"><span>Priority</span>
+            <select [(ngModel)]="issueForm.priority" name="issue_priority">
+              <option *ngFor="let priority of lookups()?.issue_priorities ?? []" [ngValue]="priority">{{ priority }}</option>
+            </select>
+          </label>
+        </div>
+        <label class="field"><span>Title</span><input [(ngModel)]="issueForm.title" name="issue_title" type="text" /></label>
+        <label class="field"><span>Description</span><textarea [(ngModel)]="issueForm.description" name="issue_description" rows="4"></textarea></label>
+        <div class="field-row">
+          <label class="field"><span>Assignee</span><input [(ngModel)]="issueForm.assignee_name" name="issue_assignee" type="text" /></label>
+          <label class="field"><span>Due</span><input [(ngModel)]="issueForm.due_date" name="issue_due" type="date" /></label>
+        </div>
+        <button type="submit" class="primary-action" [disabled]="isLoading()">Log issue</button>
+      </form>
+
+      <form *ngIf="composerView === 'diary'" class="composer-form" (ngSubmit)="createDiaryEntry()">
+        <label class="field"><span>Project</span>
+          <select [(ngModel)]="diaryForm.project_id" name="diary_project">
+            <option *ngFor="let project of projectOptions()" [ngValue]="project.id">{{ project.code }} · {{ project.name }}</option>
+          </select>
+        </label>
+        <div class="field-row">
+          <label class="field"><span>Date</span><input [(ngModel)]="diaryForm.entry_date" name="diary_date" type="date" /></label>
+          <label class="field"><span>Weather</span><input [(ngModel)]="diaryForm.weather" name="diary_weather" type="text" /></label>
+        </div>
+        <label class="field"><span>Workforce</span><input [(ngModel)]="diaryForm.workforce_count" name="diary_workforce" type="number" /></label>
+        <label class="field"><span>Completed work</span><textarea [(ngModel)]="diaryForm.completed_work" name="diary_completed" rows="4"></textarea></label>
+        <label class="field"><span>Blockers</span><textarea [(ngModel)]="diaryForm.blockers" name="diary_blockers" rows="2"></textarea></label>
+        <label class="field"><span>Safety note</span><textarea [(ngModel)]="diaryForm.safety_note" name="diary_safety" rows="2"></textarea></label>
+        <button type="submit" class="primary-action" [disabled]="isLoading()">Save diary entry</button>
+      </form>
+    </aside>
+  </section>
+
+  <section class="ops-grid">
+    <article class="ops-panel">
+      <div class="section-head">
+        <p class="eyebrow">Permit radar</p>
+        <h3>At-risk permits</h3>
+      </div>
+      <div class="mini-list">
+        <div *ngFor="let permit of riskPermits(); trackBy: trackById" class="mini-row">
+          <div>
+            <strong>{{ permit.reference_code }}</strong>
+            <span>{{ permit.project?.name || 'Project link pending' }}</span>
+          </div>
+          <span class="status-pill" [attr.data-tone]="toneForStatus(permit.status)">{{ permit.status }}</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="ops-panel">
+      <div class="section-head">
+        <p class="eyebrow">Compliance board</p>
+        <h3>Contractor watchlist</h3>
+      </div>
+      <div class="mini-list">
+        <div *ngFor="let contractor of watchlistContractors(); trackBy: trackById" class="mini-row">
+          <div>
+            <strong>{{ contractor.name }}</strong>
+            <span>{{ contractor.trade }}</span>
+          </div>
+          <span class="status-pill" [attr.data-tone]="toneForStatus(contractor.compliance_status)">{{ contractor.compliance_status }}</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="ops-panel">
+      <div class="section-head">
+        <p class="eyebrow">Issue queue</p>
+        <h3>High priority blockers</h3>
+      </div>
+      <div class="mini-list">
+        <div *ngFor="let issue of criticalIssues(); trackBy: trackById" class="mini-row">
+          <div>
+            <strong>{{ issue.title }}</strong>
+            <span>{{ issue.project?.name || 'Project link pending' }}</span>
+          </div>
+          <span class="status-pill" [attr.data-tone]="toneForStatus(issue.priority)">{{ issue.priority }}</span>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <div *ngIf="isLoading()" class="loading-bar"></div>
+</div>
+
+<ng-template #noProject>
+  <main class="detail-panel empty-state">
+    <h2>No project selected</h2>
+    <p>Create a new project or choose one from the portfolio rail.</p>
+  </main>
+</ng-template>
