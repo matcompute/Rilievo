@@ -6,7 +6,7 @@ Rilievo is a construction and permit intelligence platform that helps teams mana
 
 ## 2. Why This Product
 
-This is the strongest second portfolio product because it gives:
+This is a strong operations product direction because it gives:
 
 - a stronger PHP and Angular enterprise story
 - document-heavy and compliance-heavy business logic

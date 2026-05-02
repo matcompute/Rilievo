@@ -6,7 +6,7 @@ The name comes from the Italian word `rilievo`, which can mean surveying, measur
 
 ## Product Position
 
-Rilievo is the more sellable operations-heavy product in the portfolio:
+Rilievo is an operations-heavy product direction for construction and compliance teams:
 
 - strong Laravel + Angular story
 - practical B2B workflows
